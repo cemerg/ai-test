@@ -1,0 +1,32 @@
+name: Gemini Task Completion Agent
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  solve-issue:
+    if: contains(github.event.comment.body, '@gemini-cli')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Execute Gemini Agent
+        uses: google-github-actions/run-gemini-cli@v0
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          prompt: |
+            You are an autonomous AI software engineer.
+            User comment: "${{ github.event.comment.body }}"
+            Issue Title: "${{ github.event.issue.title }}"
+            Issue Body: "${{ github.event.issue.body }}"
+
+            Instructions:
+            1. Modify the HTML/JS code in this repo to fulfill the request.
+            2. Use the GitHub CLI (`gh`) to create a new branch, commit your changes, and open a Pull Request linking back to this issue.
