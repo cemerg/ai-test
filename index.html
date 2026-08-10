@@ -83,6 +83,76 @@
     .theme-toggle-btn:active {
       transform: translateY(1px);
     }
+
+    .ip-info-container {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      border-radius: 10px;
+      background-color: rgba(0, 0, 0, 0.02);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      text-align: left;
+      max-width: 380px;
+      margin-left: auto;
+      margin-right: auto;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    [data-theme="dark"] .ip-info-container {
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .ip-info-container h3 {
+      margin-top: 0;
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .ip-details p {
+      margin: 0.6rem 0;
+      font-size: 0.95rem;
+      text-align: left;
+      opacity: 0.9;
+    }
+
+    .ip-loader {
+      text-align: center;
+      font-style: italic;
+      color: var(--text-color);
+      opacity: 0.7;
+      padding: 1rem 0;
+    }
+
+    .ip-error {
+      color: #d32f2f;
+      text-align: center;
+      font-size: 0.95rem;
+      padding: 0.5rem 0;
+    }
+
+    [data-theme="dark"] .ip-error {
+      color: #ff6b6b;
+    }
+
+    .retry-btn {
+      background-color: var(--btn-bg);
+      color: var(--btn-text);
+      border: 1px solid var(--btn-border);
+      padding: 0.3rem 0.8rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 0.5rem;
+      transition: all 0.2s ease;
+      display: inline-block;
+    }
+
+    .retry-btn:hover {
+      filter: brightness(0.95);
+    }
   </style>
 </head>
 <body>
@@ -90,6 +160,21 @@
     <h1>Hello, World!</h1>
     <button id="theme-toggle" class="theme-toggle-btn">Switch Theme</button>
     <p>Welcome to my web app.</p>
+
+    <!-- IP Details Section -->
+    <div id="ip-info" class="ip-info-container">
+      <h3>Your Network Info</h3>
+      <div id="ip-loader" class="ip-loader">Detecting your IP details...</div>
+      <div id="ip-details" class="ip-details" style="display: none;">
+        <p><strong>IP Address:</strong> <span id="ip-address">-</span></p>
+        <p><strong>Location:</strong> <span id="ip-location">-</span></p>
+        <p><strong>ISP:</strong> <span id="ip-isp">-</span></p>
+      </div>
+      <div id="ip-error" class="ip-error" style="display: none;">
+        Failed to load IP details.<br>
+        <button id="retry-btn" class="retry-btn">🔄 Retry</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -119,6 +204,87 @@
         themeToggleBtn.textContent = '🌙 Switch to Dark Mode';
       }
     }
+
+    // IP Geolocation Detection with Fallbacks
+    async function fetchIpDetails() {
+      const loader = document.getElementById('ip-loader');
+      const details = document.getElementById('ip-details');
+      const errorDiv = document.getElementById('ip-error');
+      
+      const ipAddressSpan = document.getElementById('ip-address');
+      const ipLocationSpan = document.getElementById('ip-location');
+      const ipIspSpan = document.getElementById('ip-isp');
+
+      // Reset UI state
+      loader.style.display = 'block';
+      details.style.display = 'none';
+      errorDiv.style.display = 'none';
+
+      const apis = [
+        {
+          url: 'https://ipapi.co/json/',
+          parse: (data) => {
+            if (!data.ip) throw new Error('Invalid response');
+            return {
+              ip: data.ip,
+              location: [data.city, data.region, data.country_name].filter(Boolean).join(', '),
+              isp: data.org || '-'
+            };
+          }
+        },
+        {
+          url: 'https://ipwho.is/',
+          parse: (data) => {
+            if (!data.success || !data.ip) throw new Error('Invalid response');
+            return {
+              ip: data.ip,
+              location: [data.city, data.region, data.country].filter(Boolean).join(', '),
+              isp: (data.connection && (data.connection.isp || data.connection.org)) || data.isp || '-'
+            };
+          }
+        },
+        {
+          url: 'https://freeipapi.com/api/json',
+          parse: (data) => {
+            if (!data.ipAddress) throw new Error('Invalid response');
+            return {
+              ip: data.ipAddress,
+              location: [data.cityName, data.regionName, data.countryName].filter(Boolean).join(', '),
+              isp: data.asnOrganization || '-'
+            };
+          }
+        }
+      ];
+
+      for (const api of apis) {
+        try {
+          const response = await fetch(api.url);
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          const data = await response.json();
+          const parsed = api.parse(data);
+          
+          // Update UI with parsed details securely
+          ipAddressSpan.textContent = parsed.ip;
+          ipLocationSpan.textContent = parsed.location || 'Unknown Location';
+          ipIspSpan.textContent = parsed.isp || 'Unknown ISP';
+          
+          loader.style.display = 'none';
+          details.style.display = 'block';
+          return; // Success! Exit the function.
+        } catch (e) {
+          console.warn(`Failed to fetch from ${api.url}:`, e);
+          // Continue to next fallback API in loop
+        }
+      }
+
+      // If all APIs failed, show the error/retry UI
+      loader.style.display = 'none';
+      errorDiv.style.display = 'block';
+    }
+
+    // Attach event listeners and fetch on page load
+    document.getElementById('retry-btn').addEventListener('click', fetchIpDetails);
+    fetchIpDetails();
   </script>
 </body>
 </html>
