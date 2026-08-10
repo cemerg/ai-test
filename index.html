@@ -1,6 +1,124 @@
-Hello World App
-  
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello World App</title>
+  <style>
+    :root {
+      --bg-color: #ffffff;
+      --text-color: #1a1a1a;
+      --btn-bg: #f0f0f0;
+      --btn-text: #1a1a1a;
+      --btn-border: #cccccc;
+    }
 
+    [data-theme="dark"] {
+      --bg-color: #333333; /* dark gray */
+      --text-color: #ffffff;
+      --btn-bg: #444444;
+      --btn-text: #ffffff;
+      --btn-border: #555555;
+    }
 
-  Hello, World!
-  Welcome to my web app.
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .container {
+      text-align: center;
+      padding: 2.5rem;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+      background-color: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme="dark"] .container {
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+      font-size: 2.5rem;
+      font-weight: 700;
+    }
+
+    p {
+      margin-top: 1.5rem;
+      margin-bottom: 0;
+      font-size: 1.1rem;
+      opacity: 0.8;
+    }
+
+    .theme-toggle-btn {
+      background-color: var(--btn-bg);
+      color: var(--btn-text);
+      border: 2px solid var(--btn-border);
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      outline: none;
+    }
+
+    .theme-toggle-btn:hover {
+      filter: brightness(0.95);
+      transform: translateY(-1px);
+    }
+
+    .theme-toggle-btn:active {
+      transform: translateY(1px);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Hello, World!</h1>
+    <button id="theme-toggle" class="theme-toggle-btn">Switch Theme</button>
+    <p>Welcome to my web app.</p>
+  </div>
+
+  <script>
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    
+    // Check for saved theme preference, default to light
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    updateButtonText(currentTheme);
+
+    themeToggleBtn.addEventListener('click', () => {
+      let theme = document.documentElement.getAttribute('data-theme');
+      if (theme === 'dark') {
+        theme = 'light';
+      } else {
+        theme = 'dark';
+      }
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      updateButtonText(theme);
+    });
+
+    function updateButtonText(theme) {
+      if (theme === 'dark') {
+        themeToggleBtn.textContent = '☀️ Switch to Light Mode';
+      } else {
+        themeToggleBtn.textContent = '🌙 Switch to Dark Mode';
+      }
+    }
+  </script>
+</body>
+</html>
