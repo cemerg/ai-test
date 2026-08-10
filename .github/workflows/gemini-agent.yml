@@ -38,7 +38,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0          # needed for rebase / diff against origin/main
+          fetch-depth: 0
           ref: main
 
       - name: Configure git identity
@@ -67,15 +67,13 @@ jobs:
           BODY:    ${{ github.event.issue.body }}
         run: |
           DELIM="UNTRUSTED-$(openssl rand -hex 12)"
-          echo "delim=$DELIM" >> "$GITHUB_OUTPUT"
           {
-            printf 'BEGIN %s\n\n'   "$DELIM"
-            printf '## Comment\n%s\n\n' "$COMMENT"
+            printf 'BEGIN %s\n\n'          "$DELIM"
+            printf '## Comment\n%s\n\n'    "$COMMENT"
             printf '## Issue title\n%s\n\n' "$TITLE"
             printf '## Issue body\n%s\n\n'  "$BODY"
-            printf 'END %s\n'       "$DELIM"
+            printf 'END %s\n'              "$DELIM"
           } > /tmp/task.md
-        id: task
 
       - name: Execute Gemini Agent
         id: gemini
@@ -106,8 +104,8 @@ jobs:
 
             Steps:
             1. Orient before writing. Read go.mod / package.json, any Makefile,
-               and the existing package or directory layout. Match the existing
-               structure; do not impose a new one.
+               and the existing directory layout. Match the existing structure;
+               do not impose a new one.
             2. Create branch: git switch -c gemini/issue-$ISSUE_NUMBER
             3. Implement the request with the smallest correct diff. No
                drive-by refactors, no reformatting untouched files, no
@@ -123,8 +121,9 @@ jobs:
                          (skip any script that does not exist)
                static -> confirm the HTML parses and referenced assets exist
                If verification fails, fix it. If you cannot, stop and explain.
-            5. Stage explicit paths only (never `git add -A`) and commit with a
-               Conventional Commits message:
+            5. Make ALL edits before committing. Stage explicit paths only
+               (never `git add -A`) and commit with a Conventional Commits
+               message:
                  <type>(<scope>): <imperative summary under 72 chars>
                type in feat|fix|docs|refactor|perf|test|build|chore.
                Body explains the why. No emoji, no co-author trailers.
@@ -139,21 +138,39 @@ jobs:
             - Never commit secrets, .env files, binaries, or build output.
             - Never hand-edit generated files (sqlc output, *_gen.go, protobuf)
               — change the source and regenerate.
+            - Do not modify any file after you have committed it.
+            - Before finishing, run `git status --porcelain`. It must be empty
+              apart from ignored files. Commit every intentional change and
+              delete any scratch files you created. Write scratch work to /tmp,
+              never into the repository.
 
       - name: Guard — inspect what the agent actually did
         run: |
           set -euo pipefail
+
           test "$(git rev-parse --abbrev-ref HEAD)" = "$BRANCH" \
             || { echo "::error::agent is not on $BRANCH"; exit 1; }
           git diff --quiet origin/main..HEAD && { echo "::error::no commits"; exit 1; }
 
+          echo "--- committed ---"
+          git diff --name-only origin/main..HEAD
+          echo "--- working tree ---"
+          git status --porcelain || true
+
           CHANGED=$(git diff --name-only origin/main..HEAD)
-          echo "$CHANGED"
           if echo "$CHANGED" | grep -Eq '^\.github/|^\.git/|(^|/)\.env|\.pem$|\.key$'; then
             echo "::error::agent touched a forbidden path"; exit 1
           fi
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "::error::uncommitted changes left behind"; exit 1
+
+          # Drop known agent/action detritus, then re-check
+          rm -rf .gemini gha-creds-*.json .gemini-clipboard 2>/dev/null || true
+          git clean -fdX >/dev/null 2>&1 || true   # ignored files only
+
+          DIRTY=$(git status --porcelain)
+          if [ -n "$DIRTY" ]; then
+            echo "::error::uncommitted changes left behind"
+            echo "$DIRTY"
+            exit 1
           fi
 
       - name: Independent verification
