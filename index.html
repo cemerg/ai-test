@@ -270,6 +270,10 @@
           
           loader.style.display = 'none';
           details.style.display = 'block';
+
+          if (typeof window.onIpDetailsLoaded === 'function') {
+            window.onIpDetailsLoaded(parsed);
+          }
           return; // Success! Exit the function.
         } catch (e) {
           console.warn(`Failed to fetch from ${api.url}:`, e);
@@ -280,11 +284,80 @@
       // If all APIs failed, show the error/retry UI
       loader.style.display = 'none';
       errorDiv.style.display = 'block';
+
+      if (typeof window.onIpDetailsFailed === 'function') {
+        window.onIpDetailsFailed();
+      }
     }
 
     // Attach event listeners and fetch on page load
     document.getElementById('retry-btn').addEventListener('click', fetchIpDetails);
     fetchIpDetails();
+  </script>
+
+  <!-- Firebase Integration -->
+  <script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-analytics.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCx9yPYDu6BW37B7h3WGnsmdpUW1TbOtR8",
+      authDomain: "ai-test-1fb3b.firebaseapp.com",
+      projectId: "ai-test-1fb3b",
+      storageBucket: "ai-test-1fb3b.firebasestorage.app",
+      messagingSenderId: "291994821591",
+      appId: "1:291994821591:web:f155765d9380293db82192",
+      measurementId: "G-TTJ7X3VSJZ"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
+
+    let visitSaved = false;
+
+    async function saveVisit(ipDetails = null) {
+      if (visitSaved) return;
+      visitSaved = true;
+
+      try {
+        const visitData = {
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          referrer: document.referrer || 'direct',
+          url: window.location.href
+        };
+
+        if (ipDetails) {
+          visitData.ip = ipDetails.ip || null;
+          visitData.location = ipDetails.location || null;
+          visitData.isp = ipDetails.isp || null;
+        }
+
+        const docRef = await addDoc(collection(db, "visits"), visitData);
+        console.log("Visit logged in DB with ID: ", docRef.id);
+      } catch (e) {
+        console.error("Error logging visit to DB: ", e);
+      }
+    }
+
+    // Register callbacks to fetchIpDetails
+    window.onIpDetailsLoaded = (ipDetails) => {
+      saveVisit(ipDetails);
+    };
+
+    window.onIpDetailsFailed = () => {
+      saveVisit(null);
+    };
+
+    // Fallback: if IP fetching is slow or fails silently, save the visit anyway after 4s
+    setTimeout(() => {
+      saveVisit(null);
+    }, 4000);
   </script>
 </body>
 </html>
